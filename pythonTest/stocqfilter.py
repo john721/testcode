@@ -8,9 +8,10 @@ import codecs
 import time
 
 datestr = '20190415'
-monthly_file = "./10803.html"
-
-def get_html_dfs(year, month):
+def get_html_dfs(stryear, strmonth):
+    year = int(stryear)
+    month = int(strmonth)
+    monthly_file = "./" + stryear + "_" + strmonth + ".html"
     try:
         with open (monthly_file, 'r') as mf:
             dfs = pd.read_html(monthly_file, encoding='utf-8')
@@ -22,7 +23,6 @@ def get_html_dfs(year, month):
     	    year -= 1911
     
         url = 'http://mops.twse.com.tw/nas/t21/sii/t21sc03_'+str(year)+'_'+str(month)+'_0.html'
-        url = "http://mops.twse.com.tw/nas/t21/sii/t21sc03_108_3_0.html"
         if year <= 98:
         	url = 'http://mops.twse.com.tw/nas/t21/sii/t21sc03_'+str(year)+'_'+str(month)+'.html'
     
@@ -49,38 +49,26 @@ def monthly_report(year, month):
     	df = df[list(range(0,10))]
     	column_index = df.index[(df[0] == '公司代號')][0]
     	df.columns = df.iloc[column_index]
-    """ 
-    print "df.dtypes"
-    print df.dtypes
-    print "df.index"
-    print df.index
-    print "df.columns"
-    print df.columns
-    print "df.values"
-    print df.values
-    """
+
     df.columns = ["ID", "name", "income", "LMin", "LYMin", "MOM%", "YOY%", "ACC", "LYAcc", "%AccYoY", "remark"]
-    #df[u'當月營收'] = pd.to_numeric(df[u'當月營收'], 'coerce')
     df['income'] = pd.to_numeric(df['income'], 'coerce')
-    #df = df[~df[u'當月營收'].isnull()]
     df = df[~df['income'].isnull()]
-    #df = df[df[u'公司代號'] != '合計']
     df = df[df['ID'] != '合計']
 
-    # 偽停頓
-    #time.sleep(5)
+    fake_fin_report = ['2489']
+    major_job_ng = ['2363', '3018']
 
-    df = df[df['MOM%'] > 20]
+    blacklist = fake_fin_report
+    blacklist += major_job_ng
+
+    df = df[df['MOM%'] > 100]
     df = df[df['YOY%'] > 10]
-    df = df[df['%AccYoY'] > 20.0]
-    print ("df.columns")
-    print (df.columns)
+    df = df[df['%AccYoY'] > 10.0]
+    df = df[df['ID'].isin(blacklist) == False]
+    #print ("df.columns")
+    #print (df.columns)
     print (df.iloc[0:25, [0,2,3,4,5,6,7,8,9,1]])
-    #print (df.iloc[025:050, [0,2,3,4,5,6,7,8,9,1]])
-    #print df.iloc[050:075, [0,2,3,4,5,6,7,8,9,1]]
-    #print df.iloc[075:100, [0,2,3,4,5,6,7,8,9,1]]
-    #print df.iloc[100:125, [0,2,3,4,5,6,7,8,9,1]]
-
+    print (df.iloc[26:50, [0,2,3,4,5,6,7,8,9,1]])
     return df
 
 def daily_report(datestr):
@@ -88,7 +76,6 @@ def daily_report(datestr):
     with codecs.open( datestr + ".txt", mode='w') as writefile:
         writefile.write(r.text.encode('utf8'))
 
-    # 整理資料，變成表格
     df = pd.read_csv(StringIO("\n".join([i.translate({ord(c): None for c in ' '}) 
                                      for i in r.text.split('\n') 
                                      if len(i.split('",')) == 17 and i[0] != '='])), header=0)
@@ -96,5 +83,5 @@ def daily_report(datestr):
     gt3lt10 = gt3[pd.to_numeric(df['本益比'], errors='coerce') < 10]
     print (gt3lt10)
 
-monthly_report(103,1)
+monthly_report("108", "3")
 
