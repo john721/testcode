@@ -7,6 +7,7 @@ import numpy as np
 import codecs
 import time
 
+# TODO: 找出今年配息, 殖利率等相關資訊
 datestr = '20190415'
 def get_html_dfs(stryear, strmonth):
     year = int(stryear)
@@ -71,6 +72,58 @@ def monthly_report(year, month):
     print (df.iloc[26:50, [0,2,3,4,5,6,7,8,9,1]])
     return df
 
+def get_html_dfs_fin_stat(year, season, type):
+    fin_stat_file = "./" + str(year) + "_" + str(season) + ".html"
+    try:
+        with open (fin_stat_file, 'r') as fsf:
+            dfs = pd.read_html(fin_stat_file, encoding='utf-8')
+            print ("read html file successfully")
+            return dfs
+    except Exception as e:
+        print(e)
+        if year >= 1000:
+            year -= 1911
+            
+        if type == '綜合損益彙總表':
+            url = 'http://mops.twse.com.tw/mops/web/ajax_t163sb04'
+        elif type == '資產負債彙總表':
+            url = 'http://mops.twse.com.tw/mops/web/ajax_t163sb05'
+        elif type == '營益分析彙總表':
+            url = 'http://mops.twse.com.tw/mops/web/ajax_t163sb06'
+        else:
+            print('type does not match')
+
+        r = requests.post(url, {
+            'encodeURIComponent':1,
+            'step':1,
+            'firstin':1,
+            'off':1,
+            'TYPEK':'sii',
+            'year':str(year),
+            'season':str(season),
+        })
+
+        r.encoding = 'utf8'
+        dfs = pd.read_html(r.text)
+        print ("fetch html file successfully")
+
+        with codecs.open( fin_stat_file, mode='wb') as writefile:
+            writefile.write(r.text.encode('utf8'))
+        dfs = pd.read_html(StringIO(r.text), encoding='big-5')
+
+        return dfs
+
+
+# source:https://www.finlab.tw/Python-%E8%B2%A1%E5%A0%B1%E7%88%AC%E8%9F%B2-1-%E7%B6%9C%E5%90%88%E6%90%8D%E7%9B%8A%E8%A1%A8/
+def financial_statement(year, season, type='綜合損益彙總表'):
+    dfs = get_html_dfs_fin_stat(year, season, type)
+    # 3rd df is the major table
+    majordf = dfs[3]
+    majordf = majordf.iloc[:, [0,    2,        3,       5,           10,     12,        19,         20,    22,   29,   1     ] ]
+    majordf.columns =         ["ID", "income", "Costs", "net gross", "fees", "op. pft", "NetProf", "OCI", "CI", "EPS", "name"]
+    print(majordf)
+    return
+
 def daily_report(datestr):
     r = requests.post('http://www.twse.com.tw/exchangeReport/MI_INDEX?response=csv&date=' + datestr + '&type=ALL')
     with codecs.open( datestr + ".txt", mode='w') as writefile:
@@ -83,5 +136,6 @@ def daily_report(datestr):
     gt3lt10 = gt3[pd.to_numeric(df['本益比'], errors='coerce') < 10]
     print (gt3lt10)
 
-monthly_report("108", "3")
+#monthly_report("108", "3")
+financial_statement(107, 1)
 
