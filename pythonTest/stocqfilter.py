@@ -5,14 +5,15 @@ from io import StringIO
 import pandas as pd
 import numpy as np
 import codecs
+import datetime
 import time
+import sys
 
 # TODO: 找出今年配息, 殖利率等相關資訊
-datestr = '20190415'
 def get_html_dfs(stryear, strmonth):
     year = int(stryear)
     month = int(strmonth)
-    monthly_file = "./" + stryear + "_" + strmonth + ".html"
+    monthly_file = "./mon_" + stryear + "_" + strmonth + ".html"
     try:
         with open (monthly_file, 'r') as mf:
             dfs = pd.read_html(monthly_file, encoding='utf-8')
@@ -61,19 +62,27 @@ def monthly_report(year, month):
 
     blacklist = fake_fin_report
     blacklist += major_job_ng
+    wlist = ['8926', '2535', '3705', '2439', '2634', '6201', '2375']
+    wdf = df[df['ID'].isin(wlist) == True]
+    print ("White List_________\n")
+    print (wdf.iloc[0:25, [0,2,3,4,5,6,7,8,9,1]])
+    print ("\n")
 
-    df = df[df['MOM%'] > 100]
-    df = df[df['YOY%'] > 10]
-    df = df[df['%AccYoY'] > 10.0]
+    df = df[df['MOM%'] > 3]
+    df = df[df['YOY%'] > 3]
+    df = df[df['%AccYoY'] > 3.0]
     df = df[df['ID'].isin(blacklist) == False]
+    df = df.sort_values(['%AccYoY'])
     #print ("df.columns")
     #print (df.columns)
+    print ("Month Good_________\n")
     print (df.iloc[0:25, [0,2,3,4,5,6,7,8,9,1]])
     print (df.iloc[26:50, [0,2,3,4,5,6,7,8,9,1]])
+    print (df.iloc[51:75, [0,2,3,4,5,6,7,8,9,1]])
     return df
 
 def get_html_dfs_fin_stat(year, season, type):
-    fin_stat_file = "./" + str(year) + "_" + str(season) + ".html"
+    fin_stat_file = "./fin" + str(year) + "_" + str(season) + ".html"
     try:
         with open (fin_stat_file, 'r') as fsf:
             dfs = pd.read_html(fin_stat_file, encoding='utf-8')
@@ -120,14 +129,32 @@ def financial_statement(year, season, type='綜合損益彙總表'):
     # 3rd df is the major table
     majordf = dfs[3]
     majordf = majordf.iloc[:, [0,    2,        3,       5,           10,     12,        19,         20,    22,   29,   1     ] ]
-    majordf.columns =         ["ID", "income", "Costs", "net gross", "fees", "op. pft", "NetProf", "OCI", "CI", "EPS", "name"]
+    majordf.columns =         ["ID", "income", "Costs", "NetGross", "fees", "OpPft", "NetProf", "OCI", "CI", "EPS", "name"]
+
+    # Gross Profit Margin
+    majordf['gpm'] = (majordf.income - majordf.Costs)/majordf.income * 100
+    cols = majordf.columns.tolist()
+    cols = cols[0:3] + cols[-1:] + cols[3:-1]
+    print(cols)
+    majordf = majordf[cols]
+
+    #majordf = majordf[majordf['EPS'] > 0.0]
+    majordf = majordf[majordf['gpm'] > 5.0]
+    white_list = monthly_report("108", "4")
+    majordf = majordf.loc[majordf['ID'].isin(white_list['ID'])]
+
+    # digit print format: 1,234,567
+    for col in ['income', 'Costs','OpPft', 'NetProf', 'CI']:
+        majordf[col] = majordf.apply(lambda x: "{:,}".format(x[col]), axis=1)
+    print ("\n" + str(year) + " season" + str(season) + "_________")
+    #print(majordf[:10])
     print(majordf)
     return
 
 def daily_report(datestr):
     r = requests.post('http://www.twse.com.tw/exchangeReport/MI_INDEX?response=csv&date=' + datestr + '&type=ALL')
-    with codecs.open( datestr + ".txt", mode='w') as writefile:
-        writefile.write(r.text.encode('utf8'))
+    #with codecs.open( datestr + ".txt", mode='w') as writefile:
+    #    writefile.write(r.text.encode('utf8'))
 
     df = pd.read_csv(StringIO("\n".join([i.translate({ord(c): None for c in ' '}) 
                                      for i in r.text.split('\n') 
@@ -136,6 +163,17 @@ def daily_report(datestr):
     gt3lt10 = gt3[pd.to_numeric(df['本益比'], errors='coerce') < 10]
     print (gt3lt10)
 
-#monthly_report("108", "3")
-financial_statement(107, 1)
+if __name__ == '__main__':
+    #datestr = '20190415'
+    now = datetime.datetime.now()
+    datestr = str(now.year) + str(now.month) + str(now.day-1)
+    #daily_report(datestr)
+    if ("mon" == sys.argv[1]):
+        monthly_report("108", "4")
+    elif ("fin" == sys.argv[1]):
+        try:
+            financial_statement(107, 4)
+            financial_statement(108, 1)
+        except Exception as e:
+            print(e)
 
