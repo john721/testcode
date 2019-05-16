@@ -77,11 +77,12 @@ def monthly_report(year, month):
     df = df.sort_values(['%AccYoY'])
     #print ("df.columns")
     #print (df.columns)
-    print ("Month Good_________\n")
-    print (df.iloc[0:25, [0,2,3,4,5,6,7,8,9,1]])
-    print (df.iloc[26:50, [0,2,3,4,5,6,7,8,9,1]])
-    print (df.iloc[51:75, [0,2,3,4,5,6,7,8,9,1]])
-    print (df.iloc[76:100, [0,2,3,4,5,6,7,8,9,1]])
+    row_cnt, col_cnt = df.shape
+    idx = 0
+    while idx < row_cnt:
+        print (str(year) + " " + str(month) + "th " + "monthly Good")
+        print (df.iloc[idx : idx+10, [0,2,3,4,5,6,7,8,9,1]])
+        idx = idx + 10
     return df
 
 def get_html_dfs_fin_stat(year, season, type):
@@ -131,8 +132,8 @@ def financial_statement(year, season, type='綜合損益彙總表'):
     dfs = get_html_dfs_fin_stat(year, season, type)
     # 3rd df is the major table
     majordf = dfs[3]
-    majordf = majordf.iloc[:, [0,    2,        3,       5,          10,     12,      19,        20,    22,   29,    1     ] ]
-    majordf.columns =         ["ID", "income", "Costs", "NetGross", "fees", "OpPft", "NetProf", "OCI", "CI", "EPS", "name"]
+    majordf = majordf.iloc[:, [0,    2,        3,       5,          10,     12,      13,            19,        20,    22,   29,    1     ] ]
+    majordf.columns =         ["ID", "income", "Costs", "NetGross", "fees", "OpPft", "NonOpIn", "NetProf", "OCI", "CI", "EPS", "name"]
 
 
     # Gross Profit Margin rate
@@ -142,7 +143,7 @@ def financial_statement(year, season, type='綜合損益彙總表'):
     majordf['gpm'] = (majordf.income.astype(float) - majordf.Costs.astype(float))/majordf.income.astype(float) * 100.0
     cols = majordf.columns.tolist()
     cols = cols[0:3] + cols[-1:] + cols[3:-1]
-    print(cols)
+    #print(cols)
     majordf = majordf[cols]
 
     # Net Profit Margin rate
@@ -150,8 +151,8 @@ def financial_statement(year, season, type='綜合損益彙總表'):
     majordf.NetProf = majordf.NetProf.map(di).fillna(majordf.NetProf).astype(float)
     majordf['npm'] = majordf.NetProf.astype(float) / majordf.income.astype(float) * 100.0
     cols = majordf.columns.tolist()
-    cols = cols[0:8] + cols[-1:] + cols[8:-1]
-    print(cols)
+    cols = cols[0:9] + cols[-1:] + cols[9:-1]
+    #print(cols)
     majordf = majordf[cols]
 
     majordf = majordf[majordf['EPS'] > 0.0]
@@ -161,13 +162,16 @@ def financial_statement(year, season, type='綜合損益彙總表'):
     majordf = majordf.loc[majordf['ID'].isin(white_list['ID'])]
 
     # digit print format: 1,234,567
-    for col in ['income', 'Costs','OpPft', 'NetProf', 'CI']:
-        majordf[col] = majordf.apply(lambda x: "{:,}".format(x[col]), axis=2)
+    for col in ['income', 'Costs','OpPft', 'NetProf', 'CI', 'NonOpIn']:
+        majordf[col] = majordf.apply(lambda x: "{:,}".format(x[col]), axis=1)
 
     majordf = majordf.sort_values(['npm'])
-    print ("\n" + str(year) + " season" + str(season) + "_________")
-    #print(majordf[:10])
-    print(majordf)
+    idx = 0
+    row_cnt, col_cnt = majordf.shape
+    while idx < row_cnt: 
+        print ("\n" + str(year) + " season" + str(season) + "__" + str(idx) + " to " + str(idx+10))
+        print(majordf[idx : idx+10])
+        idx = idx + 10
     return True
 
 #FIXME:
