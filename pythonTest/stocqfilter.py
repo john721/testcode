@@ -12,17 +12,18 @@ import locale
 from locale import atof
 import os
 from argparse import ArgumentParser
+import csv
 
 MODE = "mon"
 TW_STOCK_SERVER = "https://mops.twse.com.tw"
 REFETCH = 1
 
 # TODO: 找出今年配息, 殖利率等相關資訊
-def get_html_dfs(stryear, strmonth, action):
+def get_html_dfs(stryear, strmonth):
     year = int(stryear)
     month = int(strmonth)
     monthly_file = "./mon_" + stryear + "_" + strmonth + ".html"
-    if (action == 'refresh'):
+    if (0 != REFETCH):
         print("Refetch html..")
         open(monthly_file, 'a').close()
         os.remove(monthly_file)
@@ -53,21 +54,24 @@ def get_html_dfs(stryear, strmonth, action):
         dfs = pd.read_html(StringIO(r.text), encoding='big-5')
         return dfs
 
-def monthly_report(year, month, action='None'):
-    dfs = get_html_dfs(year, month, action)
-    #print dfs[1].describe
+def monthly_report(year, month):
+    dfs = get_html_dfs(year, month)
+    #print(dfs[1].describe)
+    #print(dfs)
 
     df = pd.concat([df for df in dfs if df.shape[1] <= 11 and df.shape[1] > 5])
-    print(df.columns.tolist())
+    #print(df.columns.tolist())
     
     if 'levels' in dir(df.columns):
-    	df.columns = df.columns.get_level_values(1)
+        df.columns = df.columns.get_level_values(1)
     else:
-    	df = df[list(range(0,10))]
-    	column_index = df.index[(df[0] == '公司代號')][0]
-    	df.columns = df.iloc[column_index]
+        df = df[list(range(0,10))]
+        column_index = df.index[(df[0] == '公司代號')][0]
+        df.columns = df.iloc[column_index]
 
-    df.columns = ["ID", "name", "income", "LMin", "LYMin", "MOM%", "YOY%", "ACC", "LYAcc", "%AccYoY", "remark"]
+    #                0    1         2        3      4        5        6       7        8           9         10
+    #df.columns = ["ID", "name", "income", "LMin", "LYMin", "MOM%", "YOY%",  "ACC",    "LYAcc",   "%AccYoY", "remark"]   #Before 2019/SEP
+    df.columns  = ["ID", "name", "remark", "MOM%", "LMin",  "YOY%", "LYMin", "income", "%AccYoY", "LYAcc",   "ACC"]      #After  2019/SEP
     df['income'] = pd.to_numeric(df['income'], 'coerce')
     df = df[~df['income'].isnull()]
     df = df[df['ID'] != '合計']
@@ -77,18 +81,24 @@ def monthly_report(year, month, action='None'):
 
     blacklist = fake_fin_report
     blacklist += major_job_ng
-    wlist = ['5283', '2610', '1229', '1722', '2330', '2103', '8926', '2535', '3705', '2439', '2634', '6201', '2375', '9946', '1730', '6214', '2105']
+    wlistcsv = csv.reader(open("white_list.txt"), delimiter=' ')
+    wlist = list(zip(*wlistcsv))[0]
+
     #Directors and Supervisors 董監持股% 排行
-    top_dshold_list = ['2227', '2630', '8455', '1525', '6236', '6505', '5450', '3532', '8908', '2007', '8931', '3093', '5344', '2748', '4545', '6023', '1535', '9930', '6581', '1232', '3489', '2468', '8046', '6577', '3016', '8454', '2029', '5468', '8473', '8420', '1735', '4989', '8480', '1789', '5902', '3564', '8426', '3709', '2433', '8032', '1736', '8077', '3628', '1795', '6613', '2724', '6103', '3226', '2633', '6523', '6499', '4919', '1259', '9928', '6451', '6579', '6227', '6514', '6441', '5820', '4763', '6291', '3652', '6640', '6803', '8291', '1530', '2397', '5288', '5264', '6616', '4192', '2923', '6654', '1256', '8923', '6561', '1905', '2221', '8432', '6548', '6024', '4506', '8182', '3073', '3675', '2851', '2722', '2528', '3691', '6114', '6552', '3067', '6482', '6196', '6230', '6021', '6594', '2429', '3623', '8099', '2427', '1439', '5903', '8418', '1617', '3083', '2373', '3144', '2926', '2836', '2719', '8424', '2204', '3454', '3265', '3054', '6144', '2712', '8913', '2642', '8404', '6525', '4180', '1592', '2596', '6488', '6582', '4755', '5465', '6569', '3631', '5907', '5209', '3685', '4933', '9906', '1773', '4188', '2939', '1583', '2543', '6412', '8406', '5340', '8499', '4807', '6241', '6183', '4432', '6221', '6674', '2607', '2901', '1418', '8104', '6486', '6435', '6248', '9907', '8444', '3624', '4552', '4173', '3666', '3188', '3031', '3515', '8131', '8279', '8934', '6669', '3004', '3512', '4528', '8463', '6134', '2609', '4563', '2540', '2729', '4148', '5223', '2438', '3416', '1309', '2912', '8067', '9941', '2723', '3663', '8101', '6171', '8466', '8427', '6609', '4706', '2035', '3276', '1235', '5347', '4566', '2916', '6574', '1724', '5102', '6173', '4930', '3171', '6461', '3162', '4131', '8367', '2610', '2441', '5234', '6666', '3294', '1726', '4116', '6541', '5317', '4944', '1802', '2009', '4433', '1258', '4438', '4523', '8415', '2013', '4538', '8921', '2643', '8440', '5210', '3465', '6516', '4702', '2904', '4554', '4420', '6222', '5212', '9950', '3570', '6284', '5011', '3504', '6431', '4535', '2440', '8446', '1109', '1702', '2867', '2606', '5276', '4419', '4737', '4560', '9918', '2739', '4912', '5508', '3374', '6191', '3287', '8201', '6130', '1737', '3310', '8110', '5269', '8215', '2014', '3046', '6228', '3492', '1339', '3558', '2450', '4725', '2390', '6140', '1308', '3557', '2462', '3380', '4958', '3611', '5703', '3332', '8072', '2239', '4175', '4157', '6590', '4154', '8341']
+    top_dshold_list = open("top_ds_holder_list.txt").read().splitlines()
 
     tdsh_df = wdf = df[df['ID'].isin(top_dshold_list) == True]
     print ("Top Directors & Supervisor Holding % List_________\n")
-    print (wdf.iloc[0:25, [0,2,3,4,5,6,7,8,9,1,10]])
+
+    #2019/SEP, column sequence changed:
+    #print (wdf.iloc[0:25, [0,2,3,4,5,6,7,8,9,1,10]])
+    print (wdf.iloc[0:25,  [0,7,4,6,3,5,10,9,8,1,2]])
     print ("\n")
 
     wdf = df[df['ID'].isin(wlist) == True]
     print ("White List_________\n")
-    print (wdf.iloc[0:25, [0,2,3,4,5,6,7,8,9,1,10]])
+    #print (wdf.iloc[0:25, [0,2,3,4,5,6,7,8,9,1,10]])
+    print (wdf.iloc[0:25,  [0,7,4,6,3,5,10,9,8,1,2]])
     print ("\n")
 
     df = df[df['MOM%'] > 3]
@@ -102,7 +112,8 @@ def monthly_report(year, month, action='None'):
     idx = 0
     while idx < row_cnt:
         print (str(year) + " " + str(month) + "th " + "monthly Good")
-        print (df.iloc[idx : idx+10, [0,2,3,4,5,6,7,8,9,1,10]])
+        #print (df.iloc[idx : idx+10, [0,2,3,4,5,6,7,8,9,1,10]])
+        print (df.iloc[idx : idx+10, [0,7,4,6,3,5,10,9,8,1,2]])
         idx = idx + 10
     return df
 
@@ -294,7 +305,7 @@ if __name__ == '__main__':
         datestr = str(now.year) + str(now.month).zfill(2) + str(now.day-2).zfill(2)
         daily_report(datestr)
     elif ("mon" == MODE):
-        monthly_report("108", "8", REFETCH)
+        monthly_report("108", "9")
     elif ("fin" == MODE):
         try:
             financial_statement(108, 2)
